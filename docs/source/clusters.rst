@@ -1,7 +1,7 @@
 Clusters
 ========
 
-The Clusters method transforms tabular data into synthetic grayscale or RGB-like images by applying unsupervised learning techniques such as clustering, density estimation, or factor decomposition. In a first phase, the data are transformed into a latent representation based on the selected algorithm, and subsequently, images are generated from that representation.
+The Clusters method transforms tabular data into synthetic grayscale or multi-channel images by first learning a latent representation with clustering- or density-based unsupervised techniques, and then reshaping that representation into square image matrices.
 
 Import Clusters
 ---------------
@@ -16,7 +16,7 @@ Hyperparameters & Configuration
 When creating the :py:class:`Clusters` class, some parameters can be modified. The parameters are:
 
 .. list-table::
-   :widths: 20 45 15 20
+   :widths: 20 40 20 20
    :header-rows: 1
 
    * - Parameters
@@ -24,11 +24,11 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
      - Default value
      - Valid values
    * - :py:data:`problem`
-     - The type of problem, defining how the generated images are grouped.
+     - The type of problem, defining how the images are grouped.
      - None
-     - ['supervised', 'unsupervised', 'regression']
+     - ['classification', 'unsupervised', 'regression']
    * - :py:data:`normalize`
-     - If True, normalizes input data using MinMaxScaler through the parent class configuration.
+     - Parameter kept in the constructor for API compatibility. In this implementation it is accepted as input, but it is not used in the call to the parent class constructor.
      - None
      - [True, False]
    * - :py:data:`verbose`
@@ -36,11 +36,11 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
      - None
      - [True, False]
    * - :py:data:`algorithm`
-     - Algorithm / technique to be applied for generating the synthetic image representation.
+     - Algorithm / technique used to generate the latent representation that is later converted into an image.
      - 'kmeans'
      - ['kmeans', 'gaussianMix', 'aggloKNN', 'mixMethod', 'kde', 'kmedoids', 'factor']
    * - :py:data:`n_clusters`
-     - Number of clusters/components used to represent the data. The image size is determined from the square root of this value. It can also be set to ``'auto'`` or to a list of candidate integers, in which case the optimal value is selected based on image stability (SSIM). This parameter does not apply to KDE.
+     - Number of clusters or latent components used to represent the data. The image side is computed from the square root of this value, rounded up when necessary. It can also be ``'auto'`` or a list of candidate integers for automatic selection based on SSIM stability. This option is not available for ``kde`` or ``aggloKNN``.
      - 16
      - integer, ``'auto'``, or list of integers
    * - :py:data:`random_seed`
@@ -56,7 +56,7 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
      - 300
      - integer
    * - :py:data:`algorithmMethod`
-     - Variant of the k-means algorithm.
+     - Variant of the k-means algorithm used by ``kmeans``.
      - 'lloyd'
      - ['lloyd', 'elkan']
    * - :py:data:`covariance_type`
@@ -64,7 +64,7 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
      - 'full'
      - ['full', 'tied', 'diag', 'spherical']
    * - :py:data:`ensamMethod`
-     - List of algorithms used when ``algorithm='mixMethod'``. Each selected method is mapped to one image channel. Up to three different methods are allowed and cannot be repeated.
+     - List of methods used when ``algorithm='mixMethod'``. Each method corresponds to one image channel. Methods cannot be repeated and the list length must be between 1 and 3.
      - []
      - ['kmeans', 'gaussianMix', 'aggloKNN', 'kmedoids', 'factor']
    * - :py:data:`bandwidth`
@@ -72,22 +72,22 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
      - 1.0
      - float
    * - :py:data:`kernel`
-     - Type of kernel used in kernel density estimation.
+     - Kernel type used by the KDE algorithm.
      - 'gaussian'
      - ['gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine']
    * - :py:data:`metric`
-     - Distance metric used by ``aggloKNN``, ``kmedoids``, and ``kde``. The valid options depend on the selected algorithm.
+     - Distance metric used by ``aggloKNN``, ``kmedoids``, and ``kde``. The valid values depend on the selected algorithm. When ``'manhattan'`` is provided, it is internally converted to ``'cityblock'``.
      - 'euclidean'
      - For ``kmedoids`` and ``kde``: ['euclidean', 'manhattan', 'chebyshev']; for ``aggloKNN``: ['euclidean', 'manhattan', 'cosine']; for ``mixMethod``: ['euclidean', 'manhattan']
    * - :py:data:`RBFKmeans`
-     - If True, transforms k-means distances using an RBF function before converting them into image intensities.
+     - If True, transforms the distances to k-means centroids with an RBF function before image generation.
      - False
      - [True, False]
 
 Code example:
 
 >>> model = Clusters(
-...     problem='supervised',
+...     problem='classification',
 ...     algorithm='kmeans',
 ...     n_clusters=25,
 ...     random_seed=1,
@@ -100,20 +100,43 @@ All the parameters that aren't specifically set will have their default values.
 Algorithm Notes
 ---------------
 
-- ``kmeans``: builds the image representation from distances to centroids, optionally transformed with RBF.
-- ``gaussianMix``: uses posterior probabilities of Gaussian mixture components.
-- ``aggloKNN``: first performs agglomerative clustering with a k-NN connectivity graph, then uses a KNN classifier to estimate class probabilities.
-- ``kde``: estimates one-dimensional kernel density distributions for each feature and uses the resulting densities as image values.
-- ``kmedoids``: uses distances to medoids obtained with a PAM-like iterative procedure.
-- ``factor``: applies factor analysis and uses the transformed latent representation.
-- ``mixMethod``: combines up to three different methods into a 3-channel image.
+The class supports several internal strategies to build the representation that is later reshaped into an image:
+
+- ``kmeans``:
+  
+  Uses the distances from each sample to the cluster centroids. Optionally, these distances can be transformed with an RBF kernel before image generation.
+
+- ``gaussianMix``:
+  
+  Uses the posterior probabilities returned by a Gaussian Mixture Model.
+
+- ``aggloKNN``:
+  
+  First applies Agglomerative Clustering with a k-nearest-neighbors connectivity graph, and then trains a KNN classifier on the resulting pseudo-labels to obtain class probabilities.
+
+- ``kde``:
+  
+  Estimates a one-dimensional kernel density distribution for each feature and uses the density values as the transformed representation.
+
+- ``kmedoids``:
+  
+  Uses distances from each sample to the learned medoids obtained through a PAM-like procedure.
+
+- ``factor``:
+  
+  Uses the latent representation obtained from Factor Analysis.
+
+- ``mixMethod``:
+  
+  Combines up to three different methods into a 3-channel image. Each selected method fills one channel.
 
 Additional constraints:
 
-- ``n_clusters='auto'`` and list-based cluster search are only available for ``kmeans``, ``gaussianMix``, ``mixMethod``, ``kmedoids``, and ``factor``.
-- ``kde`` and ``aggloKNN`` do not support automatic cluster selection.
-- When using ``mixMethod``, ``ensamMethod`` must contain between 1 and 3 non-repeated valid methods.
-- When using ``factor``, the number of clusters/components must be smaller than the number of features minus one.
+- ``mixMethod`` requires ``ensamMethod`` to contain between 1 and 3 non-repeated methods.
+- ``kde`` and ``aggloKNN`` do not support automatic cluster selection with ``n_clusters='auto'`` or a list of candidate values.
+- If ``factor`` is used, the number of clusters/components must be smaller than the number of features minus one.
+- In grayscale mode, ``kmeans`` and ``kmedoids`` reorder the transformed features according to centroid/medoid proximity before reshaping them into the image.
+- In multi-channel mode, if fewer than three channels are provided, the remaining channels are filled with zeros.
 
 Functions
 ---------
@@ -135,7 +158,7 @@ Clusters has the following functions:
        - filename: .pkl file path
      -
    * - :py:data:`fit(data)`
-     - Trains the model on the tabular data. Depending on the selected algorithm, this step learns cluster centroids, medoids, mixture components, factor projections, KDE distributions, or multi-channel representations.
+     - Trains the model on the tabular data. Depending on the selected algorithm, this step learns centroids, medoids, Gaussian mixture components, factor projections, KDE distributions, or multi-channel representations.
 
        - data: A path to a CSV file or a Pandas DataFrame containing the features and targets. The target column must be the last column.
      -
@@ -153,23 +176,3 @@ Clusters has the following functions:
      - Folders with synthetic images
 
 - **The model must be fitted** before using the ``transform`` method. If the model isn't fitted, a ``RuntimeError`` will be raised.
-
-Generated Output
-----------------
-
-Depending on the selected problem type, the method saves:
-
-- Supervised:
-  
-  - Images grouped into subfolders by class.
-  - A ``supervised.csv`` file with image paths and class labels.
-
-- Unsupervised:
-  
-  - Images inside an ``images`` folder.
-  - An ``unsupervised.csv`` file with image paths.
-
-- Regression:
-  
-  - Images inside an ``images`` folder.
-  - A ``regression.csv`` file with image paths and target values.
