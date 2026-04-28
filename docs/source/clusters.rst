@@ -16,7 +16,7 @@ Hyperparameters & Configuration
 When creating the :py:class:`Clusters` class, some parameters can be modified. The parameters are:
 
 .. list-table::
-   :widths: 20 40 20 20
+   :widths: 20 40 10 10 20
    :header-rows: 1
 
    * - Parameters
@@ -62,34 +62,42 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
    * - :py:data:`max_iter`
      - Maximum number of iterations for ``kmeans``, ``gaussianMix``, and ``kmedoids``.
      - 300
+     - ['kmeans', 'gaussianMix', 'mixMethod', 'kmedoids']
      - integer
    * - :py:data:`algorithmMethod`
      - Variant of the k-means algorithm used by ``kmeans``.
      - 'lloyd'
+     - ['kmeans', 'mixMethod']
      - ['lloyd', 'elkan']
    * - :py:data:`covariance_type`
      - Covariance type used by the Gaussian Mixture model.
      - 'full'
+     - ['gaussianMix', 'mixMethod']
      - ['full', 'tied', 'diag', 'spherical']
    * - :py:data:`ensamMethod`
      - List of methods used when ``algorithm='mixMethod'``. Each method corresponds to one image channel. Methods cannot be repeated and the list length must be between 1 and 3.
      - []
+     - ['mixMethod']
      - ['kmeans', 'gaussianMix', 'aggloKNN', 'kmedoids', 'factor']
    * - :py:data:`bandwidth`
      - Bandwidth used in kernel density estimation.
      - 1.0
+     - ['kde']
      - float
    * - :py:data:`kernel`
      - Kernel type used by the KDE algorithm.
      - 'gaussian'
+     - ['kde']
      - ['gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine']
    * - :py:data:`metric`
      - Distance metric used by ``aggloKNN``, ``kmedoids``, and ``kde``. The valid values depend on the selected algorithm. When ``'manhattan'`` is provided, it is internally converted to ``'cityblock'``.
      - 'euclidean'
+     - ['kde', 'aggloKNN', 'kmedoids', 'mixMethod']
      - For ``kmedoids`` and ``kde``: ['euclidean', 'manhattan', 'chebyshev']; for ``aggloKNN``: ['euclidean', 'manhattan', 'cosine']; for ``mixMethod``: ['euclidean', 'manhattan']
    * - :py:data:`RBFKmeans`
      - If True, transforms the distances to k-means centroids with an RBF function before image generation.
      - False
+     - ['kmeans', 'mixMethod']
      - [True, False]
 
 Code example:
