@@ -22,34 +22,42 @@ When creating the :py:class:`Clusters` class, some parameters can be modified. T
    * - Parameters
      - Description
      - Default value
+     - Algorithm
      - Valid values
    * - :py:data:`problem`
      - The type of problem, defining how the images are grouped.
      - None
+     - All
      - ['classification', 'unsupervised', 'regression']
    * - :py:data:`normalize`
      - Parameter kept in the constructor for API compatibility. In this implementation it is accepted as input, but it is not used in the call to the parent class constructor.
      - None
+     - All
      - [True, False]
    * - :py:data:`verbose`
      - Show execution details in the terminal.
      - None
+     - All
      - [True, False]
    * - :py:data:`algorithm`
      - Algorithm / technique used to generate the latent representation that is later converted into an image.
      - 'kmeans'
+     - All
      - ['kmeans', 'gaussianMix', 'aggloKNN', 'mixMethod', 'kde', 'kmedoids', 'factor']
    * - :py:data:`n_clusters`
      - Number of clusters or latent components used to represent the data. The image side is computed from the square root of this value, rounded up when necessary. It can also be ``'auto'`` or a list of candidate integers for automatic selection based on SSIM stability. This option is not available for ``kde`` or ``aggloKNN``.
      - 16
+     - ['kmeans', 'gaussianMix', 'aggloKNN', 'mixMethod', 'kmedoids', 'factor']
      - integer, ``'auto'``, or list of integers
    * - :py:data:`random_seed`
      - Seed for reproducibility.
      - 1
+     - All
      - integer
    * - :py:data:`n_init`
      - Number of initializations for the ``kmeans`` and ``gaussianMix`` algorithms.
      - 'auto'
+     - ['kmeans', 'gaussianMix', 'mixMethod']
      - integer or 'auto'
    * - :py:data:`max_iter`
      - Maximum number of iterations for ``kmeans``, ``gaussianMix``, and ``kmedoids``.
